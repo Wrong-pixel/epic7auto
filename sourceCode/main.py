@@ -5,13 +5,10 @@
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from adbutils import adb, AdbDevice
+from adbutils import adb, AdbDevice, errors
 from numpy import asarray
 import aircv
 import random
-
-adbAddress = "127.0.0.1:7555"
-
 
 def pointOffset(point):
     x = int(random.uniform(point.x - 2, point.x + 2))
@@ -42,11 +39,12 @@ class worker(QtCore.QThread):
     def __init__(self):
         super().__init__()
 
-    def setVariable(self, startMode: int, expectNum: int, moneyNum: int, stoneNum: int):
+    def setVariable(self, startMode: int, expectNum: int, moneyNum: int, stoneNum: int, adbAddress: str):
         self.startMode = startMode
         self.expectNum = expectNum
         self.moneyNum = moneyNum
         self.stoneNum = stoneNum
+        self.adbAddress = adbAddress
 
     def run(self):
         self.isStart.emit()
@@ -71,14 +69,11 @@ class worker(QtCore.QThread):
             if self.startMode == 3 and self.expectNum > self.stoneNum:
                 self.emitLog.emit("错误: 天空石使用数量大于持有数量")
                 raise ValueError("stone input error")
-
             self.emitLog.emit("正在尝试连接模拟器......")
-
             QtCore.QThread.sleep(1)
-
-            adb.connect(adbAddress, timeout=10)
-
-            device = adb.device(serial=adbAddress)
+            adb.connect(self.adbAddress, timeout=10)
+            device = adb.device(serial=self.adbAddress)
+            print(device.info)
 
             self.emitLog.emit("adb连接成功")
 
@@ -313,10 +308,12 @@ class worker(QtCore.QThread):
 
             self.isFinish.emit()
 
+        except errors.AdbError as e:
+            print(e)
+            self.emitLog.emit(str(e))
         except Exception as e:
             print(e)
-            # self.emitLog.emit(str(e))
-            self.isError.emit()
+            self.emitLog.emit(str(e))
 
 
 class Ui_Main(object):
@@ -328,33 +325,24 @@ class Ui_Main(object):
         mainWidget.setMinimumSize(QtCore.QSize(570, 290))
         mainWidget.setMaximumSize(QtCore.QSize(570, 290))
         font = QtGui.QFont()
-        font.setFamily("幼圆")
+        font.setFamily("黑体")
         font.setPointSize(12)
         mainWidget.setFont(font)
         self.tabWidget = QtWidgets.QTabWidget(mainWidget)
         self.tabWidget.setGeometry(QtCore.QRect(5, 5, 560, 280))
         self.tabWidget.setMinimumSize(QtCore.QSize(560, 280))
         self.tabWidget.setMaximumSize(QtCore.QSize(560, 280))
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+
         self.tabWidget.setFont(font)
         self.tabWidget.setStyleSheet("")
         self.tabWidget.setObjectName("tabWidget")
         self.functionTab = QtWidgets.QWidget()
-
         self.functionTab.setMinimumSize(QtCore.QSize(560, 280))
         self.functionTab.setMaximumSize(QtCore.QSize(560, 280))
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
         self.functionTab.setFont(font)
         self.functionTab.setObjectName("functionTab")
-        self.covenantInput = QtWidgets.QLineEdit(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+        self.covenantInput = QtWidgets.QLineEdit(self.functionTab)
         self.covenantInput.setFont(font)
         self.covenantInput.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
         self.covenantInput.setAlignment(
@@ -363,11 +351,8 @@ class Ui_Main(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.covenantInput.setObjectName("covenantInput")
-        self.mysticInput = QtWidgets.QLineEdit(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+        self.mysticInput = QtWidgets.QLineEdit(self.functionTab)
         self.mysticInput.setFont(font)
         self.mysticInput.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
         self.mysticInput.setAlignment(
@@ -376,18 +361,14 @@ class Ui_Main(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.mysticInput.setObjectName("mysticInput")
-        self.moneyTextShowLabel = QtWidgets.QLabel(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+        # 金币text定义
+        self.moneyTextShowLabel = QtWidgets.QLabel(self.functionTab)
         self.moneyTextShowLabel.setFont(font)
         self.moneyTextShowLabel.setObjectName("moneyTextShowLabel")
-        self.moneyTotalShowEdit = QtWidgets.QLineEdit(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+        # 金币输入定义
+        self.moneyTotalShowEdit = QtWidgets.QLineEdit(self.functionTab)
         self.moneyTotalShowEdit.setFont(font)
         self.moneyTotalShowEdit.setLayoutDirection(
             QtCore.Qt.LayoutDirection.RightToLeft
@@ -398,23 +379,37 @@ class Ui_Main(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.moneyTotalShowEdit.setObjectName("moneyTotalShowEdit")
-        self.divider = QtWidgets.QFrame(self.functionTab)
 
+        # adb text定义
+        self.adbAddressTextShowLabel = QtWidgets.QLabel(self.functionTab)
+        self.adbAddressTextShowLabel.setFont(font)
+        self.adbAddressTextShowLabel.setObjectName("adbAddressTextShowLabel")
+
+        # adb输入定义
+        self.adbAddressShowEdit = QtWidgets.QLineEdit(self.functionTab)
+        self.adbAddressShowEdit.setFont(font)
+        self.adbAddressShowEdit.setLayoutDirection(
+            QtCore.Qt.LayoutDirection.RightToLeft
+        )
+        self.adbAddressShowEdit.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignTrailing
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        self.adbAddressShowEdit.setObjectName("adbAddressShowEdit")
+
+        self.divider = QtWidgets.QFrame(self.functionTab)
         self.divider.setFrameShape(QtWidgets.QFrame.Shape.VLine)
         self.divider.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         self.divider.setObjectName("divider")
         self.stoneTextShowLabel = QtWidgets.QLabel(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+
         self.stoneTextShowLabel.setFont(font)
         self.stoneTextShowLabel.setObjectName("stoneTextShowLabel")
         self.stoneTotalShowEdit = QtWidgets.QLineEdit(self.functionTab)
 
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
+
         self.stoneTotalShowEdit.setFont(font)
         self.stoneTotalShowEdit.setLayoutDirection(
             QtCore.Qt.LayoutDirection.RightToLeft
@@ -428,7 +423,7 @@ class Ui_Main(object):
         self.startButton = QtWidgets.QPushButton(self.functionTab)
 
         font = QtGui.QFont()
-        font.setFamily("幼圆")
+        font.setFamily("黑体")
         font.setPointSize(12)
         self.startButton.setFont(font)
         self.startButton.setStyleSheet("")
@@ -452,10 +447,6 @@ class Ui_Main(object):
 
         self.stoneTimeLabel.setObjectName("stoneTimeLabel")
         self.stoneInput = QtWidgets.QLineEdit(self.functionTab)
-
-        font = QtGui.QFont()
-        font.setFamily("幼圆")
-        font.setPointSize(12)
         self.stoneInput.setFont(font)
         self.stoneInput.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
         self.stoneInput.setAlignment(
@@ -475,10 +466,18 @@ class Ui_Main(object):
         self.tabWidget.addTab(self.functionTab, "")
         self.introductionTab = QtWidgets.QWidget()
 
-        self.moneyTextShowLabel.setGeometry(QtCore.QRect(20, 30, 60, 20))
-        self.stoneTextShowLabel.setGeometry(QtCore.QRect(20, 70, 60, 20))
-        self.moneyTotalShowEdit.setGeometry(QtCore.QRect(100, 30, 100, 20))
-        self.stoneTotalShowEdit.setGeometry(QtCore.QRect(100, 70, 100, 20))
+        # 金币text框
+        self.moneyTextShowLabel.setGeometry(QtCore.QRect(20, 10, 60, 20))
+        # 天空石text框
+        self.stoneTextShowLabel.setGeometry(QtCore.QRect(20, 45, 60, 20))
+        # adb text框
+        self.adbAddressTextShowLabel.setGeometry(QtCore.QRect(20, 80, 60, 20))
+        # 金币输入框
+        self.moneyTotalShowEdit.setGeometry(QtCore.QRect(100, 10, 100, 20))
+        # 天空石输入框
+        self.stoneTotalShowEdit.setGeometry(QtCore.QRect(100, 45, 100, 20))
+        # adb输入框
+        self.adbAddressShowEdit.setGeometry(QtCore.QRect(100, 80, 100, 20))
 
         self.divider.setGeometry(QtCore.QRect(210, 10, 10, 90))
 
@@ -521,6 +520,8 @@ class Ui_Main(object):
         self.moneyTotalShowEdit.setText(_translate("Main", "1000000"))
         self.stoneTextShowLabel.setText(_translate("Main", "天空石"))
         self.stoneTotalShowEdit.setText(_translate("Main", "1000"))
+        self.adbAddressTextShowLabel.setText(_translate("Main", "ADB地址"))
+        self.adbAddressShowEdit.setText(_translate("Main", "127.0.0.1:7555"))
         self.startButton.setText(_translate("Main", "开始"))
         self.covenantTimeLabel.setText(_translate("Main", "次"))
         self.mysticTimeLabel.setText(_translate("Main", "次"))
@@ -530,7 +531,7 @@ class Ui_Main(object):
                 '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n'
                 '<html><head><meta name="qrichtext" content="1" /><style type="text/css">\n'
                 "p, li { white-space: pre-wrap; }\n"
-                "</style></head><body style=\" font-family:'幼圆'; font-size:12pt; font-weight:400; "
+                "</style></head><body style=\" font-family:'黑体'; font-size:12pt; font-weight:400; "
                 "font-style:normal;\">\n"
                 '<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; '
                 'text-indent:0px;">输入现有金币及天空石启动，启动条件:</p>\n'
@@ -556,7 +557,7 @@ class Ui_Main(object):
         self.introductionTab.setMinimumSize(QtCore.QSize(560, 280))
         self.introductionTab.setMaximumSize(QtCore.QSize(560, 280))
         font = QtGui.QFont()
-        font.setFamily("幼圆")
+        font.setFamily("黑体")
         font.setPointSize(12)
         self.introductionTab.setFont(font)
         self.introductionTab.setObjectName("introductionTab")
@@ -599,6 +600,12 @@ class Ui_Main(object):
                 else 0
             )
 
+            adbAddress = (
+                str(self.adbAddressShowEdit.text())
+                if self.adbAddressShowEdit.text() != ""
+                else "127.0.0.1:7555"
+            )
+
             if moneyNum == 0 or stoneNum == 0:
                 self.logTextBrowser.setText("")
                 self.logTextBrowser.setTextColor(QtGui.QColor("red"))
@@ -635,7 +642,7 @@ class Ui_Main(object):
                 self.startProperty(False)
                 return
 
-            self.worker.setVariable(startMode, expectNum, moneyNum, stoneNum)
+            self.worker.setVariable(startMode, expectNum, moneyNum, stoneNum, adbAddress)
             self.worker.start()
         else:
             self.worker.terminate()
@@ -656,6 +663,7 @@ class Ui_Main(object):
         self.covenantInput.setDisabled(isDisabled)
         self.mysticInput.setDisabled(isDisabled)
         self.stoneInput.setDisabled(isDisabled)
+        self.adbAddressShowEdit.setDisabled(isDisabled)
 
     def startWorker(self):
         self.logTextBrowser.setText("")
