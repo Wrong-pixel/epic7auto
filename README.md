@@ -1,4 +1,5 @@
-# epic7auto
+# epic7auto（停止维护）
+# 脱坑了，后续不再维护该项目，欢迎fork
 ### 第七史诗国服专用自动刷商店脚本
 
 特别感谢原项目[epic7autoBookmark](https://github.com/steven010116/epic7autoBookmark)，由于原项目在国服无法正常使用，在其基础上魔改出这一版
