@@ -46,6 +46,19 @@ class worker(QtCore.QThread):
         self.stoneNum = stoneNum
         self.adbAddress = adbAddress
 
+        self.refreshTime = 0
+        self.covenantFoundTime = 0
+        self.mysticFoundTime = 0
+
+    def printUsedResourcesCount(self):
+        self.emitLog.emit("====================== 结算 =========================")
+        self.emitLog.emit("共花费:")
+        self.emitLog.emit(f"天空石: {self.refreshTime * 3}个")
+        self.emitLog.emit(f"金币: {self.covenantFoundTime * 184000 + self.mysticFoundTime * 280000}元")
+        self.emitLog.emit("获得书签:")
+        self.emitLog.emit(f"圣约: {self.covenantFoundTime}次")
+        self.emitLog.emit(f"神秘: {self.mysticFoundTime}次")
+
     def run(self):
         self.isStart.emit()
 
@@ -87,9 +100,9 @@ class worker(QtCore.QThread):
 
             QtCore.QThread.sleep(1)
 
-            refreshTime = 0
-            covenantFoundTime = 0
-            mysticFoundTime = 0
+            self.refreshTime = 0
+            self.covenantFoundTime = 0
+            self.mysticFoundTime = 0
 
             covenant = aircv.imread("./img/covenantLocation.png")
             mystic = aircv.imread("./img/mysticLocation.png")
@@ -153,7 +166,7 @@ class worker(QtCore.QThread):
                                 self.emitLog.emit(f"剩余次数: {self.expectNum}次")
 
                             self.moneyNum = self.moneyNum - 184000
-                            covenantFoundTime += 1
+                            self.covenantFoundTime += 1
                             self.emitMoney.emit(str(self.moneyNum))
 
                             break
@@ -213,7 +226,7 @@ class worker(QtCore.QThread):
                                 self.emitLog.emit(f"剩余次数: {self.expectNum}次")
 
                             self.moneyNum = self.moneyNum - 280000
-                            mysticFoundTime += 1
+                            self.mysticFoundTime += 1
                             self.emitMoney.emit(str(self.moneyNum))
 
                             break
@@ -275,7 +288,7 @@ class worker(QtCore.QThread):
                             self.stoneNum = self.stoneNum - 3
                             self.emitStone.emit(str(self.stoneNum))
 
-                            refreshTime += 1
+                            self.refreshTime += 1
 
                             if self.startMode == 3:
                                 self.expectNum -= 3
@@ -298,13 +311,7 @@ class worker(QtCore.QThread):
                     QtCore.QThread.sleep(1)
 
             # finished report
-            self.emitLog.emit("====================== 结算 =========================")
-            self.emitLog.emit("共花费:")
-            self.emitLog.emit(f"天空石: {refreshTime * 3}个")
-            self.emitLog.emit(f"金币: {covenantFoundTime * 184000 + mysticFoundTime * 280000}元")
-            self.emitLog.emit("获得书签:")
-            self.emitLog.emit(f"圣约: {covenantFoundTime}次")
-            self.emitLog.emit(f"神秘: {mysticFoundTime}次")
+            self.printUsedResourcesCount()
 
             self.isFinish.emit()
 
@@ -647,6 +654,7 @@ class Ui_Main(object):
         else:
             self.worker.terminate()
             self.logTextBrowser.append("====================== 停止 =======================")
+            self.worker.printUsedResourcesCount()
             self.startProperty(False)
 
     def startProperty(self, isDisabled: bool):
